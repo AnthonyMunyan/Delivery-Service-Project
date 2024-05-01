@@ -1,0 +1,506 @@
+# WGUPS Routing Algorithm
+# Written by: Anthony Munyan
+# WGU ID 001566287
+import datetime
+
+
+import csv
+
+# Hash table class
+# Source: Dr. Cemal Tepe, MBA. "C950 - Webinar-1 - Let's Go Hashing - Complete Python Code".
+# https://srm--c.na127.visual.force.com/apex/coursearticle?Id=kA03x000000e1fuCAA
+# Modified to use lists as the underlying data structure
+class Build_list_based_hashtable:
+    # Constructor with initial capacity parameter. Assigns an empty list to all buckets
+    def __init__(self, initial_size=10):
+        self.list = []
+        for i in range(initial_size):
+            self.list.append([])
+
+    # Inserts or updates a new item into the hash table
+    def insert(self, key, item):
+        # determines where item will go
+        bucket = hash(key) % len(self.list)
+        bucket_list = self.list[bucket]
+
+        # Updates the key if it already exists in the bucket
+        for keyval in bucket_list:
+            # Print key value
+            if keyval[0] == key:
+                keyval[1] = item
+                return True
+
+        # If bucket not found, inserts item at the end of the bucket list
+        key_value = [key, item]
+        bucket_list.append(key_value)
+        return True
+
+    # Remove items from the hash table if key matches
+    def remove(self, key):
+        slot = hash(key) % len(self.list)
+        dest = self.list[slot]
+
+        # If the key is found, item is removed
+        if key in dest:
+            dest.remove(key)
+
+    # Search for items with matching key in the hash table. Returns none if not found
+    def search(self, key):
+        bucket = hash(key) % len(self.list)
+        bucket_list = self.list[bucket]
+        for pair in bucket_list:
+            if key == pair[0]:
+                return pair[1]
+        return None
+
+
+class Shipment_Item:
+    # Constructor for shipment objects
+    # Source: Dr. Cemal Tepe, MBA. "C950 - Webinar-2 - Getting Greedy, who moved my data - Complete Python Code"
+    # https://srm--c.na127.visual.force.com/apex/coursearticle?Id=kA03x000000e1g4CAA
+    # Modified attributes to fit parcel project
+    def __init__(self, id, address, city, state, zip_code, deadline, weight, status):
+        self.id = id
+        self.address = address
+        self.city = city
+        self.state = state
+        self.zip_code = zip_code
+        self.deadline = deadline
+        self.weight = weight
+        self.status = "At hub"
+        self.delivery_time = None
+        self.start_time = None
+
+    def __str__(self):
+        return "%s, %s, %s, %s, %s, %s, %s, %s, %s" % (self.id, self.address, self.city, self.state, self.zip_code,
+                                                       self.deadline, self.weight, self.status, self.delivery_time)
+
+
+# Creates parcel objects from the CSV package file (O(n))
+# Inserts parcels into the hash table 'parcels'
+# Source: Dr. Cemal Tepe, MBA. C950 - Webinar-2 - Getting Greedy, who moved my data - Complete Python Code"
+# https://srm--c.na127.visual.force.com/apex/coursearticle?Id=kA03x000000e1g4CAA
+def get_data_from_csv_file_to_build_objects(shipping_data_file, shipment_items):
+    with open(shipping_data_file) as items:
+        shipment_data = csv.reader(items)
+        for shipment in shipment_data:
+            sid = int(shipment[0])
+            saddress = shipment[1]
+            scity = shipment[2]
+            sstate = shipment[3]
+            szipcode = shipment[4]
+            sdeadline = shipment[5]
+            sweight = shipment[6]
+            sstatus = 'At hub'
+
+            s = Shipment_Item(sid, saddress, scity, sstate, szipcode, sdeadline, sweight, sstatus)
+
+            shipment_items.insert(sid, s)
+
+
+# Instance of parcels delivery hash table
+shipment_data_information_table = Build_list_based_hashtable()
+# Load parcels into the hash table
+get_data_from_csv_file_to_build_objects('csv/shippingitemsfile.csv', shipment_data_information_table)
+
+
+# Constructor to create route object.
+class Route:
+    def __init__(self, parcels, distance, address, start_time):
+        self.parcels = parcels
+        self.distance = distance
+        self.address = address
+        self.start_time = start_time
+        self.time = start_time
+
+    def __str__(self):
+        return "%s, %s, %s, %s" % (self.parcels, self.distance, self.address, self.start_time)
+
+
+# Route delivery start time
+route1_start = datetime.timedelta(hours=8)
+# Route delivery start time
+route2_start = datetime.timedelta(hours=9, minutes= 30)
+# Route delivery start time
+route3_start = datetime.timedelta(hours=10, minutes= 00)
+# Assigns hub address to start of route
+start_street = '4001 South 700 East'
+
+
+route1 = Route([13, 14, 15, 19, 20, 1, 16, 29, 30, 31, 34, 40], 0.0, start_street, route1_start)
+
+route2 = Route([3, 18, 36, 7, 8, 10, 11, 12, 17, 21, 28, 22, 25, 6, 37, 38], 0.0, start_street, route2_start)
+
+route3 = Route([9, 23, 24, 26, 27, 32, 33, 35, 39, 2, 4, 5], 0.0, start_street, route3_start)
+
+
+# Reads CSV file and parses data into a list from a .csv file.
+# Derived from concept available at: https://www.geeksforgeeks.org/read-a-csv-into-list-of-lists-in-python/
+# O(n)
+with open("csv/shippingitemsfile.csv") as shipments:
+    shipment_file_list = csv.reader(shipments)
+    shipment_file_list = list(shipment_file_list)
+
+# Reads CSV file and creates distance array
+# General concept derived from: Python staff. csv — CSV File
+# Reading and Writing. https://docs.python.org/3/library/csv.html
+# O(n)
+with open('csv/maplegend.csv') as how_far:
+    reader = csv.reader(how_far)
+    how_far_from_a_to_b = [row for row in reader]
+
+# Reads CSV file and creates address array
+# General concept derived from: Python staff. csv — CSV File
+# Reading and Writing. https://docs.python.org/3/library/csv.html
+# O(n)
+with open('csv/streetaddressstrings.csv') as street:
+    reader = csv.reader(street)
+    street_strings = [row for row in reader]
+
+
+# Utilizes i and j iteration concept, with i as key to get j index to access distance array data
+# O(1) complexity
+def get_edge_from_a_to_b(i, j):
+    a_to_b_length = how_far_from_a_to_b[i][j + 1]   # Assigns value from distance array to a_to_b_length parameter.
+    return float(a_to_b_length)                     # Returns element from distance array as float.
+
+
+# Loops through list rows to find data in a particular column. General concept derived from:
+# Custer, Charlie. (2019, May). The Basics of Python For Loops: A Tutorial.
+# URL: https://www.dataquest.io/blog/python-for-loop-tutorial/
+# O(1) complexity
+def find_legend_key_from_street_string(address):
+    for row in street_strings:  # loop through each row in address_list
+        if row[1] == address:   # each street address is found at index 1, searches for particular address
+            key = int(row[0])   # assigns found value to key
+            return key          # returns key for use in routing algorithm
+
+
+# Gets address from shipment id
+# 0(1)
+def get_address_from_shipment_id(ident):
+    addy = shipment_data_information_table.search(ident)
+    pid = (getattr(addy, 'address'))
+    return pid
+
+
+# Gets weight of individual shipments
+# O(1)
+def get_individual_shipment_weight(shipment):
+    for i in range(len(shipment_data_information_table.list)):
+        shipment_weight_search = (shipment_data_information_table.search(i + 1))
+        object_weight = getattr(shipment_weight_search, 'weight')
+        return object_weight
+
+
+# Gets weight of total route shipment
+# O(n)
+def get_total_weight_per_route(route):
+    total_route_kilos = 0.0
+    for shipment in route.parcels:
+        shipment_item_weight_getter = (shipment_data_information_table.search(shipment))
+        shipment_item_weight = int(getattr(shipment_item_weight_getter, 'weight'))
+        total_route_kilos += shipment_item_weight
+    return total_route_kilos
+
+
+# Gets delivery deadline of individual shipment item
+# O(1)
+def get_individual_shipment_deadline_time(shipment):
+    for i in range(len(shipment_data_information_table.list)):
+        shipment_weight_search = (shipment_data_information_table.search(i + 1))
+        deadline_time = getattr(shipment_weight_search, 'deadline')
+        return deadline_time
+
+
+# Gets total number of shipments scheduled for a route
+# O(n)
+def get_items_per_route(route):
+    count = 0
+    for parcel in route.parcels:
+        count += 1
+    return count
+
+
+# Modified 'Knearest neighb0r' sorting algorithm
+# hybridized with selection sort algorithm
+# Concept derived from Zybooks. C949: Data Structures & Algorithms 1: 11.7: Python: Selection Sort
+# URL: https://learn.zybooks.com/zybook/WGUC9492018/chapter/11/section/7
+# and Dr. Cemal Tepe, MBA. C950 - Webinar-3 - How to Dijkstra - Complete Python Code.
+# URL: https://srm--c.na127.visual.force.com/apex/coursearticle?Id=kA03x000000e1gECAQ
+# O(n^2) complexity
+def kneerist_ne1ghb0r_selection_sort_hybrid(route):
+    # Vehicle delivery speed (mph)
+    miles_per_hour = 18
+    # Create empty list to assign route parcels for iteration through algorithm
+    unsorted_manifest = []
+    # Create empty list to swap sorted parcel list with original parcel list
+    routed_manifest = []
+    # Populate list from hash table and parcel route list for sorting
+    for parcels in route.parcels:
+        shipment_item = shipment_data_information_table.search(parcels)
+        unsorted_manifest.append(shipment_item)
+    # Holds index position in manifest while inner loop sorts all remaining indices in manifest.
+    # Continues until manifest is empty
+    while unsorted_manifest:
+        next_shipment_item = None
+        shortest_distance = 42.4
+        # Find index of smallest remaining element in the list
+        for shipment_item in unsorted_manifest:
+            # Get key value for current location from address string
+            current_location = find_legend_key_from_street_string(route.address)
+            # Get key value for next location from address string
+            proposed_location = find_legend_key_from_street_string(shipment_item.address)
+            # Get distance between addresses
+            proposed_miles = get_edge_from_a_to_b(current_location, proposed_location)
+            # Compare distance to all remaining elements on delivery route, get shortest distance
+            if proposed_miles < shortest_distance:
+                shortest_distance = proposed_miles
+                next_shipment_item = shipment_item
+        # Adds elements to routed_manifest to swap with Route.parcels
+        routed_manifest.append(next_shipment_item.id)
+        # Removes element from unsorted manifest
+        unsorted_manifest.remove(next_shipment_item)
+        # Adds distance to next stop to overall distance travelled
+        route.distance = route.distance + shortest_distance
+        # Swaps last address on the route for the next delivery address
+        route.address = next_shipment_item.address
+        # Updates time of route object
+        route.time = route.time + datetime.timedelta(hours=shortest_distance / miles_per_hour)
+        # Assigns delivery time to parcel object
+        next_shipment_item.delivery_time = route.time
+        # Assigns time the route leaves for the next stop
+        next_shipment_item.start_time = route.start_time
+
+    # Swaps unsorted route for sorted route
+    route.parcels = routed_manifest
+    # Gets distance from last stop to hub
+    drive_delivery_vehicle_back_to_hub = get_edge_from_a_to_b(find_legend_key_from_street_string(route.address), 0)
+    # Assigns time vehicle returns back to hub
+    route.time = drive_delivery_vehicle_back_to_hub / miles_per_hour
+
+
+# Runs route objects through routing algorithm
+kneerist_ne1ghb0r_selection_sort_hybrid(route1)
+kneerist_ne1ghb0r_selection_sort_hybrid(route2)
+kneerist_ne1ghb0r_selection_sort_hybrid(route3)
+
+
+# Main
+class Main:
+
+    # Command line interface when user runs program
+    print('----------WGUPS - Western Governors University Parcel Service----------\n'
+          '                     Route Planning Application\n')
+    # Displays mileage for all routes
+    print('The total mileage for all routes is:', round(route1.distance + route2.distance + route3.distance, 2), 'miles.')
+    # Displays mileage for individual routes
+    print('Route 1 is', round(route1.distance, 2), ' miles.')
+    print('Route 2 is', round(route2.distance, 2), ' miles.')
+    print('Route 3 is', round(route3.distance, 2), ' miles.')
+    print('\nPlease select an option from the menu below:')
+
+    # User inputs selection from menu to access different program features
+    user_selection = input('1. Check status of all shipments. \n'
+                           '2. Check status of an individual shipment. \n'
+                           '3. Check progress of an individual route. \n'
+                           '0. Exit program \n'
+                           'Enter your selection: ')
+    # Checks if there is user input
+    while user_selection:
+        if user_selection == '1':
+            try:
+                # Prompts user to enter a time
+                the_time_user_entered = input('Enter the time in HH:MM format. Input a later time for projected status')
+                # Parses user input
+                (h, m) = the_time_user_entered.split(':')
+                # Converts user input to time
+                time = datetime.timedelta(hours=int(h), minutes=int(m))
+
+                # The parcel with the wrong address will be updated if the time is after 10:20:00
+                # O(1)
+                if time >= datetime.timedelta(hours=10, minutes=20):
+                    for i in range(len(shipment_data_information_table.list)):
+                        wrong_street_address_search = (shipment_data_information_table.search(i + 1))
+                        pid = int((getattr(wrong_street_address_search, 'id')))
+                        if pid == 9:
+                            # Update to correct address
+                            setattr(wrong_street_address_search, 'address', '410 S State St')
+                        if time > wrong_street_address_search.delivery_time:
+                            wrong_street_address_search.status = 'Delivered'
+                        elif time >= wrong_street_address_search.start_time:
+                            wrong_street_address_search.status = "En Route"
+                        elif time < wrong_street_address_search.start_time:
+                            wrong_street_address_search.status = "At Hub"
+
+                    # Display the change in the command-line interface
+                    print('\nThe address for shipment 9 has been corrected. The shipment info is now:\n',
+                          'ID | Address | City | State | Zip | Deadline | Weight | Status | Delivery Time\n',
+                          shipment_data_information_table.search(9))
+
+                # Searches and prints the status of every parcel according to the time
+                print('\nID | Address | City | State | Zip | Deadline | Weight | Status | Delivery Time')
+                # Assigns status to shipments based on time route start time
+                # O(n)
+                for id in range(1, 41):
+                    shipping_item_route_search = shipment_data_information_table.search(id)
+                    if time > shipping_item_route_search.delivery_time:
+                        shipping_item_route_search.status = 'Delivered'
+                    elif time >= shipping_item_route_search.start_time:
+                        shipping_item_route_search.status = "En Route"
+                    elif time < shipping_item_route_search.start_time:
+                        shipping_item_route_search.status = "At Hub"
+                    print(str(shipping_item_route_search))
+                    # Notifies user that their request has been processed and the application has closed
+                print('Request processed. Closing application')
+                exit()
+
+            # Handles invalid user input
+            except ValueError:
+                print('Invalid entry, exiting application')
+                exit()
+
+        # Searches for an individual parcel and returns status at a particular time determined by the user
+        if user_selection == '2':
+            try:
+                # Prompts user to enter the parcel ID
+                user_entered_shipment_id = input('Enter shipment ID')
+                # Prompts user to enter a time
+                get_shipment_id_from_user_entry = int(user_entered_shipment_id)
+                # Makes sure user entry is a valid parcel
+                if get_shipment_id_from_user_entry <= 40:
+                    the_time_user_entered = input(
+                        'Enter the time in HH:MM format. Input a later time for projected status')
+                    # Parses user input
+                    (h, m) = the_time_user_entered.split(':')
+                    # Converts parsed user data to time
+                    time = datetime.timedelta(hours=int(h), minutes=int(m))
+                    shipping_item_route_search = shipment_data_information_table.search(
+                        int(user_entered_shipment_id))
+                    # Updates wrong address for item 9
+                    sid = int((getattr(shipping_item_route_search, 'id')))
+                    if time >= datetime.timedelta(hours=10, minutes=20) and sid == 9:
+                        print('\nThe address for shipment 9 has been corrected.')
+                        # Update to correct address
+                        setattr(shipping_item_route_search, 'address', '410 S State St')
+                    # Gives shipment the correct status based on time
+                    # O(1)
+                    if time > shipping_item_route_search.delivery_time:
+                        shipping_item_route_search.status = 'Delivered'
+                    elif time >= shipping_item_route_search.start_time:
+                        shipping_item_route_search.status = "En Route"
+                    elif time < shipping_item_route_search.start_time:
+                        shipping_item_route_search.status = "At Hub"
+
+                    # Prints results
+                    print('\n The shipment information you selected is: \n',
+                          'ID | Address | City | State | Zip | Deadline | Weight |'
+                          ' Status | Delivery Time \n', str(shipping_item_route_search))
+                    # Notifies user that their request has been processed and the application has closed
+                    print('Request processed. Closing application')
+                    exit()
+
+                # Handles exception if user enters an invalid parcel ID
+                else:
+                    print('Invalid entry. Closing application')
+                    exit()
+
+            except ValueError:
+                print('Invalid entry, Press enter to return to main menu')
+                error_prompt = input('')
+
+        # Gets progress of parcels delivered by vehicle at a user-entered time
+        if user_selection == '3':
+            # Gets user input for route number
+            get_route_number_From_user = input('Enter the route number to check progress: (1, 2, or 3): ')
+            # If user entered a valid route number
+            if get_route_number_From_user == '1' or get_route_number_From_user == '2' or get_route_number_From_user == '3':
+                try:
+                    # User enters time
+                    get_route_time_from_user = input('Enter the time in HH:MM format. '
+                                                     'Input a later time for projected status')
+                    # Parses user entry
+                    (h, m) = get_route_time_from_user.split(':')
+                    # Gets route info based on user entry
+                    if get_route_number_From_user == '1':
+                        print('The status of route 1 is:')
+                        # Converts parsed user entry to time
+                        time = datetime.timedelta(hours=int(h), minutes=int(m))
+                        manifest = route1.parcels
+                        #  Loops through parcels on route to assign status
+                        #  O(n)
+                        for i in manifest:
+                            shipping_item_route_search = shipment_data_information_table.search(int(i))
+                            if time > shipping_item_route_search.delivery_time:
+                                shipping_item_route_search.status = 'Delivered'
+                            elif time >= shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "En Route"
+                            elif time < shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "At Hub"
+                            print(str(shipping_item_route_search))
+                        # Notifies user that their request has been processed and the application has closed
+                        print('Request processed. Closing application')
+                        exit()
+
+                    if get_route_number_From_user == '2':
+                        print('The status of route 2 is:')
+                        # Converts parsed user entry to time
+                        time = datetime.timedelta(hours=int(h), minutes=int(m))
+                        manifest = route2.parcels
+                        #  Loops through parcels on route to assign status
+                        #  O(n)
+                        for i in manifest:
+                            shipping_item_route_search = shipment_data_information_table.search(int(i))
+                            if time > shipping_item_route_search.delivery_time:
+                                shipping_item_route_search.status = 'Delivered'
+                            elif time >= shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "En Route"
+                            elif time < shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "At Hub"
+                            print(str(shipping_item_route_search))
+                        # Notifies user that their request has been processed and the application has closed
+                        print('Request processed. Closing application')
+                        exit()
+
+                    if get_route_number_From_user == '3':
+                        print('The status of route 3 is:')
+                        time = datetime.timedelta(hours=int(h), minutes=int(m))
+                        manifest = route3.parcels
+                        #  Loops through parcels on route to assign status
+                        #  O(n)
+                        for i in manifest:
+                            shipping_item_route_search = shipment_data_information_table.search(int(i))
+                            if time > shipping_item_route_search.delivery_time:
+                                shipping_item_route_search.status = 'Delivered'
+                            elif time >= shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "En Route"
+                            elif time < shipping_item_route_search.start_time:
+                                shipping_item_route_search.status = "At Hub"
+                            print(str(shipping_item_route_search))
+                        # Notifies user that their request has been processed and the application has closed
+                        print('Request processed. Closing application')
+                        exit()
+
+                # If time is not entered in the correct format, exits submenu
+                except ValueError:
+                    print('Invalid entry. Closing application')
+                    exit()
+            # If invalid vehicle number is entered, asks user to re-enter until valid number is entered
+            else:
+                print('Invalid entry. Enter a valid vehicle number')
+                continue
+            if get_route_number_From_user == ('1', '2', '3'):
+                break
+        # Exits the application
+        if user_selection == '0':
+            print('\n***** Closing WGUPS Route Planning Application *****')
+            exit()
+
+        # Handles invalid entries by allowing the user to make a new selection from the main menu
+        else:
+            print('Please make a valid selection from the menu below:')
+            user_selection = input('1. Check status of all shipments. \n'
+                                   '2. Check status of an individual shipment. \n'
+                                   '3. Check progress of an individual route. \n'
+                                   '0. Exit program \n'
+                                   'Enter your selection: ')
